@@ -1,5 +1,6 @@
 import json
 from random_number import RandomNumberGenerator
+from services import Services
 
 
 def lambda_handler(event, context):
@@ -34,6 +35,8 @@ def lambda_handler(event, context):
 def handle_request(function, parameters):
     if function == "getRandomNumber":
         return RandomNumberGenerator.get_random_number(parameters.get('username'))
+    if function == "getInfo":
+        return Services.get_info(parameters.get('service_name', 'city'))
     else:
         return {"error": "Invalid API path"}
     
