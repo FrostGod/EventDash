@@ -39,9 +39,17 @@ Resources:
             - "*"
       Policies:
         - AWSLambdaExecute
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+              Resource: '*'
+
       Environment:
         Variables:
-          SLACK_BOT_TOKEN: !Ref SlackBotToken
+            SLACK_BOT_TOKEN: !Ref SlackBotToken
+            BEDROCK_ID: !Ref BedrockAgent
+            BEDROCK_ALIAS: !Ref BedrockAgentAlias
 
 
 
