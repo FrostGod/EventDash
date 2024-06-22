@@ -9,6 +9,9 @@ Parameters:
     Type: String
     Description: Foundation model used by the agent
     Default: "anthropic.claude-3-haiku-20240307-v1:0"
+  SlackBotToken:
+    Type: String
+    Description: token for slack bot
 
 Globals:
   Function:
@@ -16,12 +19,38 @@ Globals:
     MemorySize: 128
 
 Resources:
+  SlackBotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: slack_bot/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+        Cors:
+          AllowCredentials: false
+          AllowMethods:
+            - POST
+            - GET
+          AllowOrigins:
+            - "*"
+      Policies:
+        - AWSLambdaExecute
+      Environment:
+        Variables:
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+
+
+
   AgentFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: func_agent/
       Handler: app.lambda_handler
-      Runtime: python3.9
+      Runtime: python3.11
       Architectures:
         - x86_64
       Role: !GetAtt AgentFunctionRole.Arn
@@ -132,3 +161,14 @@ Outputs:
   BedrockAgent:
     Description: Bedrock Agent ARN
     Value: !Ref BedrockAgent
+  SlackBotFunctionUrlEndpoint:
+    Description: "Url of the slack bot function"
+    Value:
+      Fn::GetAtt: SlackBotFunctionUrl.FunctionUrl
+  SlackBotFunction:
+    Description: "Slack bot function ARN"
+    Value: !GetAtt SlackBotFunction.Arn
+  SlackBotFunctionRole:
+    Description: "Implicit IAM Role created for Slack Bot function"
+    Value: !GetAtt SlackBotFunctionRole.Arn
+
