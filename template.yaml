@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  This template demonstrates the deployment of Agents for Amazon Bedrock using AWS Serverless Application Model (SAM).
+
+Parameters:
+  FoundationModel:
+    Type: String
+    Description: Foundation model used by the agent
+    Default: "anthropic.claude-3-haiku-20240307-v1:0"
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 128
+
+Resources:
+  AgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: func_agent/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Role: !GetAtt AgentFunctionRole.Arn
+
+  AgentFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub AgentFunctionRole-${AWS::StackName}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub LambdaAgentFunctionPolicy-${AWS::StackName}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+
+  AgentFunctionInvocationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt AgentFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: bedrock.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !GetAtt BedrockAgent.AgentArn
+
+  BedrockAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      ActionGroups:
+        - ActionGroupName: UserInputAction
+          ParentActionGroupSignature: AMAZON.UserInput
+        - ActionGroupName: AgentActionGroup
+          ActionGroupExecutor:
+            Lambda: !GetAtt AgentFunction.Arn
+          ActionGroupState: ENABLED
+          FunctionSchema:
+            Functions:
+              - Description: Get a random number and append username
+                Name: getRandomNumber
+                Parameters:
+                  username:
+                    Description: "User name to append to the random number"
+                    Required: true
+                    Type: string
+          Description: >
+            Functions:
+              - getRandomNumber
+      AgentName: EventDashAgent
+      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
+      AutoPrepare: true
+      Description: >
+        An agent to help plan an event, including venue sourcing, catering, and entertainment. Right now there is only a random number feature.
+      FoundationModel: !Ref FoundationModel
+      IdleSessionTTLInSeconds: 1800
+      Instruction: >
+        You are a business event planner called EventDash. You are friendly, polite and casual.
+        You help with planning events, including venue sourcing, catering, and entertainment. You can only get random numbers right now.
+
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub AmazonBedrockExecutionRoleForAgents_${AWS::StackName}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - bedrock.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub BedrockAgentFunctionPolicy-${AWS::StackName}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt AgentFunction.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: 
+                  !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${FoundationModel}"
+
+  BedrockAgentAlias:
+    Type: AWS::Bedrock::AgentAlias
+    Properties:
+      AgentAliasName: "AgentAlias"
+      AgentId: !GetAtt BedrockAgent.AgentId
+      Description: Created by CFN
+
+Outputs:
+  BedrockAgent:
+    Description: Bedrock Agent ARN
+    Value: !Ref BedrockAgent
