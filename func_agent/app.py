@@ -36,3 +36,4 @@ def handle_request(function, parameters):
         return RandomNumberGenerator.get_random_number(parameters.get('username'))
     else:
         return {"error": "Invalid API path"}
+    
