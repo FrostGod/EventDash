@@ -4,7 +4,7 @@ import streamlit as st
 from langchain.chains import ConversationChain
 from langchain_aws import ChatBedrock
 from langchain.memory import ConversationBufferMemory
-from langchain.agents import initialize_agent, Tool
+from langchain.agents import initialize_agent, Tool, AgentType
 from outbound_call import call_phone_number
 from contacts import get_all_contacts
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
@@ -55,8 +55,10 @@ tools = [generate_random_number_tool,
          YouAgent(llm=model.llm, num_results=5, st=st).as_tool(),
          ]
 
+memory = ConversationBufferMemory(
+    memory_key="chat_history", return_messages=True)
 agent = initialize_agent(
-    tools, model.llm, agent_type="zero-shot-react-description", verbose=True, handle_parsing_errors=True)
+    tools, model.llm, agent_type=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION, verbose=True, handle_parsing_errors=True, memory=memory)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []

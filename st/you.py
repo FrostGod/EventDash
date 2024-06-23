@@ -114,7 +114,7 @@ class YouAgent:
         st = self.st
 
         for venue in venues:
-            st.header(venue['name'])
+            st.header(venue.get('name', ''))
             col1, col2 = st.columns([1, 3])
 
             with col1:

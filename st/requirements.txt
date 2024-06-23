@@ -9,3 +9,4 @@ duckduckgo-search
 langchainhub
 vocode
 redis
+mailgun
