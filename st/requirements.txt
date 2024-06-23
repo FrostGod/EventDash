@@ -10,3 +10,4 @@ langchainhub
 vocode
 redis
 mailgun
+matplotlib

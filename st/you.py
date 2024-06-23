@@ -1,6 +1,7 @@
 import json
 import re
 import os
+import requests
 
 from langchain import hub
 from langchain.agents import AgentExecutor
@@ -24,7 +25,8 @@ class ChainInputSchema(BaseModel):
 
 class YouAgent:
     """
-    Agent that uses the You API to search for information.
+    Agent that uses the You API to search for only venue information, only for venue listings, 
+    other contact information should be handled by other agents.
     """
 
     def __init__(self, llm, st, num_results) -> None:
@@ -110,6 +112,27 @@ class YouAgent:
             **kwargs,
         )
 
+    def get_random_venue_image(self):
+        api_key = os.getenv("UNSPLASH_API_KEY")
+        response = requests.get(
+            f"https://api.unsplash.com/photos/random?query=event+venue&client_id={api_key}")
+        if response.status_code == 200:
+            return response.json()['urls']['regular']
+        return "https: //whova.com/wp-content/uploads/2015/06/choose-perfect-event-venue.jpg"
+
+    def get_carbon_footprint(self, venue):
+        try:
+            output = self.llm.invoke(
+                f"""Estimate the carbon footprint of {venue} based on distance to Berkeley, display it as a rating. You should give an answer no matter what to your best knowledge
+                Provide a super short explanation and super short number
+                For example: 3.5 🍀, Reason: from Berkeley to SJ usually ...
+                """
+            ).content
+
+            return output
+        except:
+            return "N/A"
+
     def show_venues(self, venues):
         st = self.st
 
@@ -122,9 +145,13 @@ class YouAgent:
                 # if venue['images']:
                 #    st.image(venue['images'][0], width=150)
                 # else:
-                st.image("https://via.placeholder.com/150", width=150)
+                # st.image(self.get_random_venue_image(venue.get('name', ''))
+                #         | "https://via.placeholder.com/150", width=150)
+                st.image(self.get_random_venue_image(), width=150)
 
             with col2:
+                st.markdown(
+                    f"**Carbon Footprint:** {self.get_carbon_footprint(venue.get('name', ''))} 🍀")
                 st.markdown(f"**Address:** {venue.get('address', '')}")
                 st.markdown(f"**Rating:** {venue.get('rating', '')} ⭐")
                 st.markdown(f"**Phone:** {venue.get('phone', '')}")
@@ -152,7 +179,7 @@ class YouAgent:
             venues = res.get('output', [])
             self.show_venues(venues)
 
-            return res
+            return "Venues displayed successfully." + json.dumps(v.get('name', '') for v in venues)
 
         return StructuredTool.from_function(
             func=run,

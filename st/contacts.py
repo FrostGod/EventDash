@@ -2,7 +2,8 @@ import os
 from typing import List
 from langchain.agents import tool
 
-CONTACTS = [{"name": "Test Venue", "phone":os.environ.get('TEST_PHONE_NUMBER')}]
+CONTACTS = [{"name": "Test Venue", "phone": os.environ.get(
+    'TEST_PHONE_NUMBER'), "email": "divesh.chowdary@gmail.com"}]
 
 
 @tool("get_all_contacts")

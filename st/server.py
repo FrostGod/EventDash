@@ -6,6 +6,9 @@ from langchain_aws import ChatBedrock
 from langchain.memory import ConversationBufferMemory
 from langchain.agents import initialize_agent, Tool, AgentType
 from outbound_call import call_phone_number
+from mail_tool import send_mailgun_email_tool
+from dashboard import DashboardAgent
+
 from contacts import get_all_contacts
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 import random
@@ -53,6 +56,8 @@ tools = [generate_random_number_tool,
          get_all_contacts,
          call_phone_number,
          YouAgent(llm=model.llm, num_results=5, st=st).as_tool(),
+         send_mailgun_email_tool,
+         DashboardAgent(llm=model.llm, st=st).as_tool()
          ]
 
 memory = ConversationBufferMemory(
@@ -72,22 +77,24 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
+    try:
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
 
-        result = agent.run(input=prompt)
-        print(result)
+            result = agent.run(input=prompt)
 
-        # Simulate stream of response with milliseconds delay
-        for chunk in result.split(' '):
-            full_response += chunk + ' '
-            if chunk.endswith('\n'):
-                full_response += ' '
-            time.sleep(0.05)
-            message_placeholder.markdown(full_response + "▌")
+            # Simulate stream of response with milliseconds delay
+            for chunk in result.split(' '):
+                full_response += chunk + ' '
+                if chunk.endswith('\n'):
+                    full_response += ' '
+                time.sleep(0.05)
+                message_placeholder.markdown(full_response + "▌")
 
-        message_placeholder.markdown(full_response)
+            message_placeholder.markdown(full_response)
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": full_response})
+        st.session_state.messages.append(
+            {"role": "assistant", "content": full_response})
+    except:
+        pass
