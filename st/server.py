@@ -9,7 +9,8 @@ from outbound_call import call_phone_number
 from contacts import get_all_contacts
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 import random
-import time, json
+import time
+import json
 from duckduckgo_search import DDGS
 from langchain_community.tools.you import YouSearchTool
 from langchain_community.utilities.you import YouSearchAPIWrapper
@@ -26,6 +27,7 @@ bedrock_runtime = boto3.client(
 
 
 os.environ["YDC_API_KEY"] = os.getenv("YOUAPIKEY")
+
 
 @st.cache_resource
 def load_llm():
@@ -56,14 +58,16 @@ generate_random_number_tool = Tool(
 
 you_tool = YouSearchTool(api_wrapper=YouSearchAPIWrapper(num_web_results=5))
 
+
 def generate_final_prompt(prompt, num_results=5):
     system_template = """You are a helpful customer service assistant that aids customers with event-related activities such as finding venues and catering services. Provide accurate and up-to-date information."""
-    
-    system_message_prompt = SystemMessagePromptTemplate.from_template(system_template)
-    
+
+    system_message_prompt = SystemMessagePromptTemplate.from_template(
+        system_template)
+
     agent_prompt = f"""
     {prompt}
-    
+
     For each service, provide the following details in JSON format:
     - name: string
     - address: string
@@ -78,14 +82,15 @@ def generate_final_prompt(prompt, num_results=5):
     If certain information is not available, use null for that field.
     Nothing other than json should be given
     """
-    
-    human_message_prompt = HumanMessagePromptTemplate.from_template(agent_prompt)
-    
+
+    human_message_prompt = HumanMessagePromptTemplate.from_template(
+        agent_prompt)
+
     chat_prompt = ChatPromptTemplate.from_messages([
         system_message_prompt,
         human_message_prompt
     ])
-    
+
     return chat_prompt
 
 
@@ -98,32 +103,34 @@ def Present(values):
     for venue in venues:
         st.header(venue['name'])
         col1, col2 = st.columns([1, 3])
-        
+
         with col1:
             # Display the first image (or a placeholder if images are not available)
             if venue['images']:
                 st.image(venue['images'][0], width=150)
             else:
                 st.image("https://via.placeholder.com/150", width=150)
-        
+
         with col2:
             st.markdown(f"**Address:** {venue['address']}")
             st.markdown(f"**Rating:** {venue['rating']} ⭐")
             st.markdown(f"**Phone:** {venue['phone']}")
-            st.markdown(f"**Website:** [{venue['website']}]({venue['website']})")
+            st.markdown(
+                f"**Website:** [{venue['website']}]({venue['website']})")
             st.markdown(f"**Email:** {venue['email']}")
             st.markdown(f"**Description:** {venue['description']}")
-            
+
             if len(venue['images']) > 1:
                 with st.expander("More images"):
                     for image in venue['images'][1:]:
                         st.image(image, width=150)
 
 
-
 # Initialize the agent with the custom tool
 tools = [generate_random_number_tool,
-         you_tool
+         get_all_contacts,
+         call_phone_number,
+         you_tool,
          ]
 
 agent = initialize_agent(
@@ -143,7 +150,6 @@ if prompt := st.chat_input("What is up?"):
 
     # if user_input.lower() in ['exit', 'quit', 'bye']:
     #     print("Customer Service Assistant: Thank you for contacting us. Have a great day!")
-        
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
@@ -169,16 +175,12 @@ if prompt := st.chat_input("What is up?"):
         {"role": "assistant", "content": full_response})
 
 
-
-
-
-
-### NOT USED
+# NOT USED
 # function to get the services list
 
 
 # def get_services(service_type, city="Berkeley"):
-#     """Gives a json about some list of services which are 
+#     """Gives a json about some list of services which are
 #     requested, services can be venues, anything in general"""
 #     print(service_type, city)
 #     results = DDGS().maps(service_type, city=city, max_results=5)
@@ -204,7 +206,7 @@ if prompt := st.chat_input("What is up?"):
 #     return json_results
 
 
-#function to get images
+# function to get images
 # def get_image(name):
 #     results = DDGS().images(name, max_results=2)
 #     images = []
