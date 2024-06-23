@@ -116,9 +116,21 @@ Resources:
                     Description: "User name to append to the random number"
                     Required: true
                     Type: string
+              - Description: look up info online using DuckDuckGo search engine, you can get services like venues, catering. basically anything related to hosting an event
+                Name: getServices
+                Parameters:
+                  service_type:
+                    Description: service type such as venue, catering service
+                    Required: true
+                    Type: string
+                  city:
+                    Description: city for query, basically any city in the US
+                    Required: true
+                    Type: string
           Description: >
             Functions:
               - getRandomNumber
+              - getServices
       AgentName: EventDashAgent
       AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
       AutoPrepare: true
@@ -166,9 +178,12 @@ Resources:
       Description: Created by CFN
 
 Outputs:
-  BedrockAgent:
-    Description: Bedrock Agent ARN
+  BedrockAgentID:
+    Description: Bedrock Agent ID
     Value: !Ref BedrockAgent
+  BedrockAgentAlias:
+    Description: Bedrock Agent Alias
+    Value: !Ref BedrockAgentAlias
   SlackBotFunctionUrlEndpoint:
     Description: "Url of the slack bot function"
     Value:
