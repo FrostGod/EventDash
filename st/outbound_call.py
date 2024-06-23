@@ -1,4 +1,6 @@
 import time
+import redis
+from typing import Optional
 from vocode.streaming.models.telephony import TwilioConfig
 from vocode.streaming.models.agent import ChatGPTAgentConfig
 from vocode.streaming.telephony.config_manager.redis_config_manager import (
@@ -12,13 +14,31 @@ from langchain.agents import tool
 from dotenv import load_dotenv
 
 from vocode.streaming.models.message import BaseMessage
-from call_transcript_utils import delete_transcript, get_transcript
+from call_transcript_utils import delete_transcript
 
 load_dotenv()
 
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 
-LOOP = asyncio.new_event_loop()
-asyncio.set_event_loop(LOOP)
+
+def get_or_create_event_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError as e:
+        if 'There is no current event loop in thread' in str(e):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        else:
+            raise
+    return loop
+
+
+async def get_transcript(conversation_id: str, pubsub) -> Optional[str]:
+    while True:
+        message = pubsub.get_message(ignore_subscribe_messages=True)
+        if message:
+            return message['data']
+        await asyncio.sleep(1)  # Non-blocking sleep
 
 
 @tool("call phone number")
@@ -42,14 +62,26 @@ def call_phone_number(input: str) -> str:
             prompt_preamble=prompt,
             initial_message=BaseMessage(text=initial_message),
         ),
-      		telephony_config=TwilioConfig(
-            account_sid=os.environ["TWILIO_ACCOUNT_SID"], auth_token=os.environ["TWILIO_AUTH_TOKEN"])
+        telephony_config=TwilioConfig(
+            account_sid=os.environ["TWILIO_ACCOUNT_SID"], auth_token=os.environ["TWILIO_AUTH_TOKEN"]
+        ),
     )
-    LOOP.run_until_complete(call.start())
-    while True:
-        maybe_transcript = get_transcript(call.conversation_id)
-        if maybe_transcript:
+
+    loop = get_or_create_event_loop()
+
+    async def manage_call():
+        await call.start()
+        redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0)
+        pubsub = redis_client.pubsub()
+        pubsub.subscribe(call.conversation_id)
+
+        try:
+            transcript = await get_transcript(call.conversation_id, pubsub)
             delete_transcript(call.conversation_id)
-            return maybe_transcript
-        else:
-            time.sleep(1)
+            return transcript
+        finally:
+            pubsub.unsubscribe(call.conversation_id)
+            redis_client.close()
+            await call.end()
+
+    return loop.run_until_complete(manage_call())

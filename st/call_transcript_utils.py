@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional
 
 CALL_TRANSCRIPTS_DIR = os.path.join(
@@ -13,14 +14,12 @@ def add_transcript(conversation_id: str, transcript: str) -> None:
         f.write(transcript)
 
 
-def get_transcript(conversation_id: str) -> Optional[str]:
-    transcript_path = os.path.join(
-        CALL_TRANSCRIPTS_DIR, "{}.txt".format(conversation_id)
-    )
-    if os.path.exists(transcript_path):
-        with open(transcript_path, "r") as f:
-            return f.read()
-    return None
+def get_transcript(conversation_id: str, pubsub) -> Optional[str]:
+    message = pubsub.get_message()
+    if message:
+        return message['data']
+    else:
+        return None
 
 
 def delete_transcript(conversation_id: str) -> bool:
