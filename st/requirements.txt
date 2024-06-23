@@ -7,3 +7,4 @@ pillow
 faiss-cpu
 duckduckgo-search
 langchainhub
+vocode

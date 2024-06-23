@@ -3,9 +3,10 @@ import streamlit as st
 from langchain.chains import ConversationChain
 from langchain_aws import ChatBedrock
 from langchain.memory import ConversationBufferMemory
-from langchain.agents import Tool, create_react_agent
 from langchain.agents import initialize_agent, Tool
 from langchain_community.tools import DuckDuckGoSearchRun
+from outbound_call import call_phone_number
+from contacts import get_all_contacts
 import random
 import time
 
@@ -55,9 +56,11 @@ tools = [generate_random_number_tool,
              func=search.run,
              description="useful for when you need to answer questions about current events",
          ),
+         get_all_contacts,
+         call_phone_number,
          ]
 agent = initialize_agent(
-    tools, model.llm, agent_type="zero-shot-react-description")
+    tools, model.llm, agent_type="zero-shot-react-description", verbose=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
