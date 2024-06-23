@@ -3,7 +3,9 @@ import streamlit as st
 from langchain.chains import ConversationChain
 from langchain_aws import ChatBedrock
 from langchain.memory import ConversationBufferMemory
+from langchain.agents import Tool, create_react_agent
 from langchain.agents import initialize_agent, Tool
+from langchain_community.tools import DuckDuckGoSearchRun
 import random
 import time
 
@@ -43,8 +45,17 @@ generate_random_number_tool = Tool(
     description="Generate a random number between 0 and 99."
 )
 
+
+search = DuckDuckGoSearchRun()
+
 # Initialize the agent with the custom tool
-tools = [generate_random_number_tool]
+tools = [generate_random_number_tool,
+         Tool(
+             name="Search",
+             func=search.run,
+             description="useful for when you need to answer questions about current events",
+         ),
+         ]
 agent = initialize_agent(
     tools, model.llm, agent_type="zero-shot-react-description")
 
