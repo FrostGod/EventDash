@@ -1,8 +1,10 @@
 import boto3
 import streamlit as st
 from langchain.chains import ConversationChain
-from langchain_community.chat_models import BedrockChat
+from langchain_aws import ChatBedrock
 from langchain.memory import ConversationBufferMemory
+from langchain.agents import initialize_agent, Tool
+import random
 import time
 
 st.title("EventDash")
@@ -16,15 +18,35 @@ bedrock_runtime = boto3.client(
 
 @st.cache_resource
 def load_llm():
-    llm = BedrockChat(client=bedrock_runtime,
+    llm = ChatBedrock(client=bedrock_runtime,
                       model_id="anthropic.claude-3-5-sonnet-20240620-v1:0")
-    # Remove the line setting model_kwargs
     model = ConversationChain(llm=llm, verbose=True,
                               memory=ConversationBufferMemory())
     return model
 
 
 model = load_llm()
+
+
+# Define the tool function
+def generate_random_number(*args, **kwargs) -> int:
+    """Generate a random number between 0 and 99."""
+    number = random.randint(0, 99)
+    print(number)
+    return number
+
+
+# Register the tool
+generate_random_number_tool = Tool(
+    name="generate_random_number",
+    func=generate_random_number,
+    description="Generate a random number between 0 and 99."
+)
+
+# Initialize the agent with the custom tool
+tools = [generate_random_number_tool]
+agent = initialize_agent(
+    tools, model.llm, agent_type="zero-shot-react-description")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -42,17 +64,14 @@ if prompt := st.chat_input("What is up?"):
         message_placeholder = st.empty()
         full_response = ""
 
-        # prompt = prompt_fixer(prompt)
-        result = model.predict(input=prompt)
+        result = agent.run(input=prompt)
 
         # Simulate stream of response with milliseconds delay
-        # fix for https://github.com/streamlit/streamlit/issues/868
         for chunk in result.split(' '):
             full_response += chunk + ' '
             if chunk.endswith('\n'):
                 full_response += ' '
             time.sleep(0.05)
-            # Add a blinking cursor to simulate typing
             message_placeholder.markdown(full_response + "▌")
 
         message_placeholder.markdown(full_response)
